@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Examen</title>
+    <style>
+        body, html {
+            padding: 0;
+            margin: 0;
+            background-color: rgb(92, 92, 92);
+            height: 100%;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .canvas-container {
+            width: 80%;
+            height: 100%;
+            border: 5px solid black;
+            background-color: rgba(238, 234, 191);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .info, .controls {
+            font-size: 20px;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+
+        .info {
+            display: flex;
+            justify-content: space-between;
+            width: 80%;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            width: 80%;
+            text-align: center;
+            font-size: 18px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+            color: white;
+        }
+
+        .lives {
+            display: flex;
+            gap: 10px;
+        }
+
+        .lives img {
+            width: 45px;
+            height: 45px;
+        }
+
+        .start-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 30px;
+            font-family: Arial, sans-serif;
+            cursor: pointer;
+            z-index: 10;
+        }
+
+        .text-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            gap: 50px;
+            text-align: center;
+        }
+
+        .defeat-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(196, 16, 16, 0.445);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-size: 30px;
+            font-family: Arial, sans-serif;
+            z-index: 10;
+            display: none;
+        }
+
+        .defeat-screen .text-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            text-align: center;
+        }
+
+        .defeat-screen button {
+            font-size: 20px;
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: black;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="info">
+            <div id="scoreDisplay">Puntos: 0</div>
+            <div id="timerDisplay">Tiempo: 00:00</div>
+            <div class="lives" id="livesContainer">
+                <img src="img/vidas.jpg" class="life" alt="Vida">
+                <img src="img/vidas.jpg" class="life" alt="Vida">
+                <img src="img/vidas.jpg" class="life" alt="Vida">
+            </div>
+        </div>
+
+        <div class="canvas-container">
+            <canvas id="myCanvas" height="750"></canvas>
+        </div>
+
+        <div class="controls">
+            Controles: A - Izquierda | D - Derecha | Espacio - Disparar | Enter - Pausar
+        </div>
+    </div>
+
+    <div class="start-screen" id="startScreen">
+        <div class="text-container">
+            <div>Haz clic para iniciar el juego</div>
+            <div>Carlos Adrian Carballo Canales</div>
+        </div>
+    </div>
+
+    <div class="defeat-screen" id="defeatScreen">
+        <div class="text-container">
+            <div>¡Juego Terminado!</div>
+            <button id="restartButton">Reiniciar Juego</button>
+        </div>
+    </div>
+    
+    <script>
+        const myCanvas = document.getElementById("myCanvas");
+        const ctx = myCanvas.getContext("2d");
+        const startScreen = document.getElementById("startScreen");
+        const livesContainer = document.getElementById("livesContainer");
+
+        function resizeCanvas() {
+            const canvasContainer = document.querySelector('.canvas-container');
+            myCanvas.width = canvasContainer.clientWidth;
+            myCanvas.height = canvasContainer.clientHeight;
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+
+        var speed = 3;
+        var pause = false;
+        var score = 0;
+        var maxScore = 0;
+        var lives = 3;
+        var time = 0;
+        var timerInterval;
+        var difficulty = 1;
+
+        const shoot = new Audio("sounds/shoot.ogg");
+        shoot.volume = 0.2;
+        
+        const musica = new Audio("sounds/soundtrack.ogg");
+        musica.loop = true;
+        musica.volume = 0.02;
+
+        var stepsLevel1 = new Audio("sounds/steps.mp3");
+        stepsLevel1.loop = true;
+        stepsLevel1.volume = 0.1;
+
+        var stepsLevel2 = new Audio("sounds/car.ogg");
+        stepsLevel2.loop = true;
+        stepsLevel2.volume = 0.1;
+
+        var stepsLevel3 = new Audio("sounds/Avioneta.ogg");
+        stepsLevel3.loop = true;
+        stepsLevel3.volume = 0.1;
+
+        var tank = new Image();
+        tank.src = "img/tanque.png";
+
+        var bullet = new Image();
+        bullet.src = "img/bullet.png";
+
+        var background = new Image();
+        background.src = "img/desierto.jpg";
+
+        var enemyImg = new Image();
+        enemyImg.src = "img/enemy.gif";
+
+        var enemy2Img = new Image();
+        enemy2Img.src = "img/car.png";
+
+        var enemy3Img = new Image();
+        enemy3Img.src = "img/plane.png";
+
+        class KeyManager {
+            constructor() {
+                this.keys = new Set();
+                document.addEventListener("keydown", event => {
+                    this.keys.add(event.code);
+                });
+                document.addEventListener("keyup", event => {
+                    this.keys.delete(event.code);
+                });
+            }
+        }
+
+        class Rectangulo {
+            constructor(img, x, y, w, h, speed) {
+                this.speed = speed;
+                this.img = img;
+                this.x = x;
+                this.y = y;
+                this.w = w;
+                this.h = h;
+            }
+            colision(otro) {
+                return this.x < otro.x + otro.w && this.x + this.w > otro
+                .x && this.y < otro.y + otro.h && this.y + this.h > otro.y;
+            }
+        }
+
+        class Projectile {
+            constructor(x, y, speed) {
+                this.x = x;
+                this.y = y;
+                this.speed = speed;
+                this.w = 30;
+                this.h = 40;
+            }
+            update() {
+                this.y -= this.speed;
+            }
+            draw(ctx) {
+                ctx.drawImage(bullet, this.x, this.y, this.w, this.h);
+            }
+        }
+
+        var player = new Rectangulo(tank, 700, 640, 125, 125, speed);
+        var enemies = [];
+        var projectiles = [];
+        const keyManager = new KeyManager();
+
+        let cooldown = 800;
+        let nextEnemyInterval = 1500;
+        let lastShotTime = 0;
+
+        document.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                pause = !pause;
+
+                if (!pause) {
+                    startTimer();
+                    nextEnemy();
+
+                    musica.play();
+                    if (difficulty === 1) {
+                        stepsLevel1.play();
+                    } else if (difficulty === 2) {
+                        stepsLevel2.play();
+                    } else if (difficulty === 3) {
+                        stepsLevel3.play();
+                    }
+
+                } else {
+                    stopTimer();
+                    musica.pause();
+
+                    stepsLevel1.pause();
+                    stepsLevel2.pause();
+                    stepsLevel3.pause();
+                }
+            }
+
+            if (e.key === " ") {
+                e.preventDefault();
+                const currentTime = Date.now();
+                if (currentTime - lastShotTime >= cooldown) {
+                    shoot.play();
+                    projectiles.push(new Projectile(player.x + player.w / 2 - 5, player.y, 5));
+                    lastShotTime = currentTime;
+                }
+            }
+        });
+
+        function update() {
+            if (!pause) {
+                switch (true) {
+                    case keyManager.keys.has("KeyA"): {
+                        player.x -= player.speed;
+
+                        if (player.x + player.w < 0) { 
+                            player.x = myCanvas.width;
+                        }
+                        break;
+                    }
+                    case keyManager.keys.has("KeyD"): {
+                        player.x += player.speed;
+                        if (player.x > myCanvas.width) {
+                            player.x = -player.w;
+                        }
+                        break;
+                    }
+                }
+
+                enemies.forEach((enemy, index) => {
+                    enemy.y += enemy.speed;
+                    if (enemy.y > myCanvas.height) {
+                        enemies.splice(index, 1);
+                        loseLife();
+                    }
+                });
+
+                projectiles.forEach((projectile, index) => {
+                    projectile.update();
+                    if (projectile.y < 0) {
+                        projectiles.splice(index, 1);
+                    }
+                });
+
+                projectiles.forEach((projectile, pIndex) => {
+                    enemies.forEach((enemy, eIndex) => {
+                        if (projectile.x < enemy.x + enemy.w &&
+                            projectile.x + projectile.w > enemy.x &&
+                            projectile.y < enemy.y + enemy.h &&
+                            projectile.y + projectile.h > enemy.y) {
+                            enemies.splice(eIndex, 1);
+                            projectiles.splice(pIndex, 1);
+
+                            score += 1;
+                            updateScore();
+                        }
+                    });
+                });
+            } else {
+                musica.pause();
+                stepsLevel1.pause();
+                stepsLevel2.pause();
+            }
+        }
+
+        function paint() {
+            ctx.clearRect(0, 0, myCanvas.width, myCanvas.height); 
+            ctx.drawImage(background, 0, 0, myCanvas.width, myCanvas.height);
+            ctx.drawImage(player.img, player.x, player.y, player.w, player.h);
+
+            enemies.forEach((enemy) => {
+                ctx.drawImage(enemy.img, enemy.x, enemy.y, enemy.w, enemy.h);
+            });
+
+            projectiles.forEach((projectile) => {
+                projectile.draw(ctx);
+            });
+
+            if (pause) {
+                ctx.fillStyle = "rgba(145,145,145,0.5)";
+                ctx.fillRect(0, 0, myCanvas.width, myCanvas.height);
+
+                ctx.font = "italic bold 20px arial, serif";
+                ctx.fillStyle = "black";
+                ctx.fillText("P A U S A", myCanvas.width / 2 - 50, myCanvas.height / 2);
+            }
+
+            if (!pause) {
+                update();
+            }
+            requestAnimationFrame(paint);
+        }
+
+        function createEnemy() {
+            if (!pause) {
+                let enemyX = Math.random() * (myCanvas.width - 150);
+                let enemyImgToUse;
+
+                if (difficulty === 1) {
+                    enemyImgToUse = enemyImg;
+                } else if (difficulty === 2) {
+                    enemyImgToUse = enemy2Img; 
+                } else if (difficulty === 3) {
+                    enemyImgToUse = enemy3Img;
+                }
+
+                enemies.push(new Rectangulo(enemyImgToUse, enemyX, -150, 100, 100, difficulty));
+            }
+            nextEnemy();
+        }
+
+        function nextEnemy() {
+            if (!pause) {
+                let interval = 1500;
+                if (difficulty === 3) {
+                    interval = nextEnemyInterval;
+                }
+                setTimeout(createEnemy, interval);
+            }
+        }
+
+        function loseLife() {
+            if (lives > 0) {
+                lives--;
+                updateLives();
+            }
+            if (lives === 0) {
+                gameOver();
+            }
+        }
+
+        function updateLives() {
+            const lifeImages = document.querySelectorAll('.life');
+            lifeImages.forEach((img, index) => {
+                img.style.display = index < lives ? 'inline' : 'none';
+            });
+        }
+
+        function gameOver() {
+            pause = true;
+            stopTimer();
+            
+            if (score > maxScore) {
+                maxScore = score;
+            }
+
+            const defeatScreen = document.getElementById("defeatScreen");
+            defeatScreen.style.display = "flex";
+
+            const textContainer = defeatScreen.querySelector(".text-container");
+            textContainer.innerHTML = `
+                <div>¡Juego Terminado!</div>
+                <div>Puntuación: ${score}</div>
+                <div>Puntuación Máxima: ${maxScore}</div>
+                <button id="restartButton">Reiniciar Juego</button>
+            `;
+
+            document.getElementById("restartButton").addEventListener("click", resetGame);
+        }
+
+        function resetGame() {
+            document.getElementById("defeatScreen").style.display = "none";
+            score = 0;
+            lives = 3;
+            time = 0;
+            difficulty = 1;
+            player.speed = 3;
+            cooldown = 800;
+            enemies = [];
+            projectiles = [];
+
+            stepsLevel1.pause();
+            stepsLevel1.currentTime = 0;
+            stepsLevel2.pause();
+            stepsLevel2.currentTime = 0;
+            stepsLevel3.pause();
+            stepsLevel3.currentTime = 0;
+            
+            musica.pause();
+            musica.currentTime = 0;
+
+            pause = true;
+
+            updateScore();
+            updateLives();
+            startScreen.style.display = "flex";
+        }
+
+
+        function increaseDifficulty() {
+            if (difficulty === 1) {
+                difficulty = 2;
+
+                enemies.forEach((enemy) => {
+                    enemy.img = enemy2Img;
+                    enemy.speed = 2;
+                });
+
+                stepsLevel1.pause();
+                stepsLevel1.currentTime = 0;
+                stepsLevel2.play();
+                player.speed = 4;
+
+            } else if (difficulty === 2) {
+                difficulty = 3;
+
+                enemies.forEach((enemy) => {
+                    enemy.img = enemy3Img;
+                    enemy.speed = 3;
+                });
+
+                stepsLevel2.pause();
+                stepsLevel2.currentTime = 0;
+                stepsLevel3.play();
+                player.speed = 5;
+
+                cooldown = 400; 
+                nextEnemyInterval = 900; 
+            }
+        }
+
+        function updateScore() {
+            const scoreDisplay = document.getElementById("scoreDisplay");
+            scoreDisplay.innerText = `Puntos: ${score}`;
+
+            if (score >= 25 && difficulty === 1) {
+                increaseDifficulty()
+            }
+
+            if (score >= 125 && difficulty === 2) {
+                increaseDifficulty();
+            }
+        }
+
+        function startTimer() {
+            let startTime = Date.now() - time;
+            timerInterval = setInterval(() => {
+                time = Date.now() - startTime;
+                const seconds = Math.floor((time / 1000) % 60);
+                const minutes = Math.floor((time / (1000 * 60)) % 60);
+                const formattedSeconds = seconds < 10 ? "0" + seconds : seconds;
+                const formattedMinutes = minutes < 10 ? "0" + minutes : minutes;
+                document.getElementById("timerDisplay").innerText = `Tiempo: ${formattedMinutes}:${formattedSeconds}`;
+            }, 1000);
+        }
+
+        function stopTimer() {
+            clearInterval(timerInterval);
+        }
+
+        paint();
+
+        startScreen.addEventListener("click", () => {
+            startScreen.style.display = "none";
+            pause = false;
+
+            musica.play();
+            
+            if (difficulty === 1) {
+                stepsLevel1.play();
+            } else if (difficulty === 2) {
+                stepsLevel2.play();
+            } else if (difficulty === 3) {
+                stepsLevel3.play();
+            }
+
+            startTimer(); 
+            nextEnemy();
+        });
+
+        if (pause) {
+            musica.pause();
+            stepsLevel1.pause();
+            stepsLevel2.pause();
+            stepsLevel3.pause();
+        }
+    </script>
+</body>
+</html>
